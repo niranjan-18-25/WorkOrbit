@@ -1,0 +1,184 @@
+package com.company.employeetracker
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.company.employeetracker.ui.components.AdminBottomNavBar
+import com.company.employeetracker.ui.components.EmployeeBottomNavBar
+import com.company.employeetracker.ui.screens.admin.*
+import com.company.employeetracker.ui.screens.auth.LoginScreen
+import com.company.employeetracker.ui.screens.employee.*
+import com.company.employeetracker.ui.theme.EmployeeTrackerTheme
+import com.company.employeetracker.viewmodel.AuthViewModel
+
+class MainActivity : ComponentActivity() {
+    private val authViewModel: AuthViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            EmployeeTrackerTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    EmployeeTrackerApp(authViewModel)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmployeeTrackerApp(authViewModel: AuthViewModel) {
+    val navController = rememberNavController()
+    val currentUser by authViewModel.currentUser.collectAsState()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+
+    val isAdmin = currentUser?.role == "admin"
+
+    // Show bottom bar only when logged in and not on login screen
+    val showBottomBar = currentUser != null && currentRoute != "login"
+
+    Scaffold(
+        bottomBar = {
+            if (showBottomBar) {
+                if (isAdmin) {
+                    AdminBottomNavBar(
+                        currentRoute = currentRoute ?: "admin_dashboard",
+                        onNavigate = { route ->
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                } else {
+                    EmployeeBottomNavBar(
+                        currentRoute = currentRoute ?: "home",
+                        onNavigate = { route ->
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        NavHost(
+            navController = navController,
+            startDestination = if (currentUser != null) {
+                if (isAdmin) "admin_dashboard" else "home"
+            } else "login",
+            modifier = Modifier.padding(paddingValues)
+        ) {
+            // Login Screen
+            composable("login") {
+                LoginScreen(
+                    onLoginSuccess = { isAdminUser ->
+                        if (isAdminUser) {
+                            navController.navigate("admin_dashboard") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate("home") {
+                                popUpTo("login") { inclusive = true }
+                            }
+                        }
+                    },
+                    viewModel = authViewModel
+                )
+            }
+
+            // Employee Screens
+            composable("home") {
+                currentUser?.let { user ->
+                    EmployeeHomeScreen(currentUser = user)
+                }
+            }
+
+            composable("tasks") {
+                currentUser?.let { user ->
+                    EmployeeTasksScreen(
+                        currentUser = user,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("reviews") {
+                currentUser?.let { user ->
+                    EmployeeReviewsScreen(
+                        currentUser = user,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("profile") {
+                currentUser?.let { user ->
+                    EmployeeProfileScreen(
+                        currentUser = user,
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        authViewModel = authViewModel
+                    )
+                }
+            }
+
+            // Admin Screens
+            composable("admin_dashboard") {
+                AdminDashboardScreen()
+            }
+
+            composable("employees") {
+                AdminEmployeesScreen()
+            }
+
+            composable("admin_tasks") {
+                AdminTasksScreen()
+            }
+
+            composable("analytics") {
+                AdminAnalyticsScreen()
+            }
+
+            composable("admin_profile") {
+                currentUser?.let { user ->
+                    AdminProfileScreen(
+                        currentUser = user,
+                        onLogout = {
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        },
+                        authViewModel = authViewModel
+                    )
+                }
+            }
+        }
+    }
+}
