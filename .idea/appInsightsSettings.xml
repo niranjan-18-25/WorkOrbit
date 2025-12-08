@@ -7,6 +7,14 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
+              <option name="connection">
+                <ConnectionSetting>
+                  <option name="appId" value="com.company.employeetracker" />
+                  <option name="mobileSdkAppId" value="1:556375978652:android:cd410c7d5f818799b6f359" />
+                  <option name="projectId" value="employeetracker-a4f7a" />
+                  <option name="projectNumber" value="556375978652" />
+                </ConnectionSetting>
+              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

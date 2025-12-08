@@ -1,5 +1,11 @@
 package com.company.employeetracker.ui.screens.employee
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -18,6 +24,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +35,26 @@ import com.company.employeetracker.ui.theme.*
 import com.company.employeetracker.viewmodel.ReviewViewModel
 import kotlin.math.cos
 import kotlin.math.sin
+
+// --- Smooth color interpolation anchors ---
+private val ColorRed = Color(0xFFFF5252)
+private val ColorAmber = Color(0xFFFFC107)
+private val ColorGreen = Color(0xFF4CAF50)
+
+/**
+ * Smooth color interpolation over 0..5 range (red -> amber -> green).
+ */
+fun getRatingColorSmooth(rating: Float): Color {
+    val safe = rating.coerceIn(0f, 5f)
+    val fraction = safe / 5f
+    return if (fraction <= 0.5f) {
+        val t = (fraction / 0.5f).coerceIn(0f, 1f)
+        lerp(ColorRed, ColorAmber, t)
+    } else {
+        val t = ((fraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
+        lerp(ColorAmber, ColorGreen, t)
+    }
+}
 
 @Composable
 fun EmployeeReviewsScreen(
@@ -41,10 +69,19 @@ fun EmployeeReviewsScreen(
     val reviews by reviewViewModel.employeeReviews.collectAsState()
     val latestReview = reviews.firstOrNull()
 
+    // Entrance animation for the whole screen
+    var stageAnim by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { stageAnim = true }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    colors = listOf(GreenLight.copy(alpha = 0.06f), Color(0xFFF5F5F5))
+                )
+            ),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
         // Header
         item {
@@ -113,81 +150,131 @@ fun EmployeeReviewsScreen(
         if (latestReview != null) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(16.dp)
+
+                // Compute dynamic color based on latest overall rating
+                val overallTargetColor = getRatingColorSmooth(latestReview.overallRating)
+                val overallColor by animateColorAsState(
+                    targetValue = overallTargetColor,
+                    animationSpec = tween(durationMillis = 600),
+                    label = "overallColor"
+                )
+
+                // Animated numeric display
+                val animatedOverall by animateFloatAsState(
+                    targetValue = latestReview.overallRating,
+                    animationSpec = tween(700),
+                    label = "animatedOverall"
+                )
+
+                AnimatedVisibility(
+                    visible = stageAnim,
+                    enter = fadeIn(tween(500)),
+                    exit = fadeOut()
                 ) {
-                    Row(
+                    Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp)
+                            .heightIn(min = 140.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(18.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                     ) {
-                        Column {
-                            Text(
-                                text = "Overall Rating",
-                                fontSize = 16.sp,
-                                color = Color(0xFF757575)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text(
-                                    text = String.format("%.1f", latestReview.overallRating),
-                                    fontSize = 48.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF212121)
-                                )
-                                Text(
-                                    text = " / 5.0",
-                                    fontSize = 24.sp,
-                                    color = Color(0xFF757575),
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = when {
-                                    latestReview.overallRating >= 4.5f -> GreenLight.copy(alpha = 0.2f)
-                                    latestReview.overallRating >= 3.5f -> AccentOrange.copy(alpha = 0.2f)
-                                    else -> AccentRed.copy(alpha = 0.2f)
-                                }
-                            ) {
-                                Text(
-                                    text = when {
-                                        latestReview.overallRating >= 4.5f -> "Excellent"
-                                        latestReview.overallRating >= 3.5f -> "Good"
-                                        else -> "Needs Improvement"
-                                    },
-                                    color = when {
-                                        latestReview.overallRating >= 4.5f -> GreenPrimary
-                                        latestReview.overallRating >= 3.5f -> AccentOrange
-                                        else -> AccentRed
-                                    },
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-                        }
-
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(120.dp)
-                                .clip(CircleShape)
-                                .background(AccentYellow.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "Star",
-                                tint = AccentYellow,
-                                modifier = Modifier.size(60.dp)
+                            Column {
+                                Text(
+                                    text = "Overall Rating",
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF757575)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        text = String.format("%.1f", animatedOverall),
+                                        fontSize = 48.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF212121)
+                                    )
+                                    Text(
+                                        text = " / 5.0",
+                                        fontSize = 24.sp,
+                                        color = Color(0xFF757575),
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = overallColor.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = when {
+                                            latestReview.overallRating >= 4.5f -> "Excellent"
+                                            latestReview.overallRating >= 3.5f -> "Good"
+                                            else -> "Needs Improvement"
+                                        },
+                                        color = overallColor,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+
+                            // Animated star badge with pulsing scale or shake when low
+                            val pulse = rememberInfiniteTransition(label = "pulse")
+                            val starScale by pulse.animateFloat(
+                                initialValue = 1.0f,
+                                targetValue = 1.06f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(900, easing = FastOutSlowInEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "starScale"
                             )
+
+                            // Shake animation for low rating
+                            val shakeOffset by if (latestReview.overallRating < 3.5f) {
+                                pulse.animateFloat(
+                                    initialValue = -6f,
+                                    targetValue = 6f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(120, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "shakeOffset"
+                                )
+                            } else {
+                                remember { mutableStateOf(0f) }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .clip(CircleShape)
+                                    .background(overallColor.copy(alpha = 0.12f))
+                                    .offset(x = with(LocalDensity.current) { shakeOffset.toDp() }),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Star",
+                                    tint = overallColor,
+                                    modifier = Modifier.size(60.dp)
+                                )
+
+                                // If Excellent, show trophy + confetti overlay
+                                if (latestReview.overallRating >= 4.5f) {
+                                    TrophyWithConfetti()
+                                }
+                            }
                         }
                     }
                 }
@@ -227,11 +314,11 @@ fun EmployeeReviewsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
-                            SkillBar("Quality", latestReview.quality, GreenPrimary)
-                            SkillBar("Communication", latestReview.communication, AccentBlue)
-                            SkillBar("Innovation", latestReview.innovation, PurplePrimary)
-                            SkillBar("Timeliness", latestReview.timeliness, AccentOrange)
-                            SkillBar("Attendance", latestReview.attendance, AccentGreen)
+                            SkillBarAnimated("Quality", latestReview.quality, GreenPrimary)
+                            SkillBarAnimated("Communication", latestReview.communication, AccentBlue)
+                            SkillBarAnimated("Innovation", latestReview.innovation, PurplePrimary)
+                            SkillBarAnimated("Timeliness", latestReview.timeliness, AccentOrange)
+                            SkillBarAnimated("Attendance", latestReview.attendance, AccentGreen)
                         }
                     }
                 }
@@ -265,7 +352,7 @@ fun EmployeeReviewsScreen(
                                 Icon(
                                     imageVector = Icons.Default.TrendingUp,
                                     contentDescription = "Radar",
-                                    tint = AccentRed,
+                                    tint = GreenPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -273,19 +360,36 @@ fun EmployeeReviewsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        RadarChart(
-                            values = listOf(
-                                latestReview.quality,
-                                latestReview.communication,
-                                latestReview.innovation,
-                                latestReview.timeliness,
-                                latestReview.attendance
-                            ),
-                            labels = listOf("Quality", "Communication", "Innovation", "Timeliness", "Attendance"),
+                        // Determine radar color based on average of values
+                        val avg = (latestReview.quality + latestReview.communication +
+                                latestReview.innovation + latestReview.timeliness +
+                                latestReview.attendance) / 5f
+                        val radarTargetColor = getRatingColorSmooth(avg)
+                        val radarColor by animateColorAsState(
+                            targetValue = radarTargetColor,
+                            animationSpec = tween(600),
+                            label = "radarColor"
+                        )
+
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(250.dp)
-                        )
+                                .height(270.dp)
+                        ) {
+                            RadarChart(
+                                values = listOf(
+                                    latestReview.quality,
+                                    latestReview.communication,
+                                    latestReview.innovation,
+                                    latestReview.timeliness,
+                                    latestReview.attendance
+                                ),
+                                labels = listOf("Quality", "Communication", "Innovation", "Timeliness", "Attendance"),
+                                modifier = Modifier.fillMaxSize(),
+                                fillColor = radarColor.copy(alpha = 0.28f),
+                                strokeColor = radarColor
+                            )
+                        }
                     }
                 }
             }
@@ -320,15 +424,15 @@ fun EmployeeReviewsScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        SkillProgressBar("Quality", latestReview.quality, GreenPrimary)
+                        SkillProgressAnimated("Quality", latestReview.quality, GreenPrimary)
                         Spacer(modifier = Modifier.height(12.dp))
-                        SkillProgressBar("Communication", latestReview.communication, AccentBlue)
+                        SkillProgressAnimated("Communication", latestReview.communication, AccentBlue)
                         Spacer(modifier = Modifier.height(12.dp))
-                        SkillProgressBar("Innovation", latestReview.innovation, PurplePrimary)
+                        SkillProgressAnimated("Innovation", latestReview.innovation, PurplePrimary)
                         Spacer(modifier = Modifier.height(12.dp))
-                        SkillProgressBar("Timeliness", latestReview.timeliness, AccentOrange)
+                        SkillProgressAnimated("Timeliness", latestReview.timeliness, AccentOrange)
                         Spacer(modifier = Modifier.height(12.dp))
-                        SkillProgressBar("Attendance", latestReview.attendance, AccentGreen)
+                        SkillProgressAnimated("Attendance", latestReview.attendance, AccentGreen)
                     }
                 }
             }
@@ -443,7 +547,7 @@ fun EmployeeReviewsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Divider()
+                    HorizontalDivider()
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -486,9 +590,48 @@ fun EmployeeReviewsScreen(
     }
 }
 
-// Helper Composables
+// --- Helper Composables with animations ---
 @Composable
-fun SkillBar(label: String, value: Float, color: Color) {
+fun TrophyWithConfetti() {
+    // Simple confetti: animated small circles moving down
+    val confettiCount = 12
+    val infinite = rememberInfiniteTransition(label = "confetti")
+    val progress by infinite.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(animation = tween(1200)),
+        label = "confettiProgress"
+    )
+
+    Box(contentAlignment = Alignment.TopCenter) {
+        // Trophy icon
+        Icon(
+            imageVector = Icons.Default.EmojiEvents,
+            contentDescription = "Trophy",
+            tint = Color(0xFFFFD700),
+            modifier = Modifier
+                .size(36.dp)
+                .offset(y = (-12).dp)
+        )
+
+        // Confetti canvas overlay
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            for (i in 0 until confettiCount) {
+                val x = size.width * ((i + progress) % confettiCount) / confettiCount
+                val y = size.height * ((progress + i * 0.07f) % 1f)
+                val sizeDp = 6.dp.toPx() * (1f + (i % 3) * 0.2f)
+                drawCircle(
+                    color = listOf(ColorRed, ColorAmber, ColorGreen, AccentBlue, PurplePrimary)[i % 5],
+                    radius = sizeDp,
+                    center = Offset(x, y)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SkillBarAnimated(label: String, value: Float, color: Color) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -501,15 +644,20 @@ fun SkillBar(label: String, value: Float, color: Color) {
         Spacer(modifier = Modifier.height(4.dp))
         Box(
             modifier = Modifier
-                .width(4.dp)
-                .height(80.dp)
-                .background(Color(0xFFE0E0E0), RoundedCornerShape(2.dp))
+                .width(6.dp)
+                .height(100.dp)
+                .background(Color(0xFFE0E0E0), RoundedCornerShape(3.dp))
         ) {
+            val animatedFill by animateFloatAsState(
+                targetValue = value / 5f,
+                animationSpec = tween(600),
+                label = "skillBar_$label"
+            )
             Box(
                 modifier = Modifier
-                    .width(4.dp)
-                    .fillMaxHeight((value / 5f))
-                    .background(color, RoundedCornerShape(2.dp))
+                    .width(6.dp)
+                    .fillMaxHeight(animatedFill)
+                    .background(color, RoundedCornerShape(3.dp))
                     .align(Alignment.BottomCenter)
             )
         }
@@ -524,7 +672,7 @@ fun SkillBar(label: String, value: Float, color: Color) {
 }
 
 @Composable
-fun SkillProgressBar(label: String, value: Float, color: Color) {
+fun SkillProgressAnimated(label: String, value: Float, color: Color) {
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -543,12 +691,17 @@ fun SkillProgressBar(label: String, value: Float, color: Color) {
             )
         }
         Spacer(modifier = Modifier.height(8.dp))
+        val animated by animateFloatAsState(
+            targetValue = value / 5f,
+            animationSpec = tween(700),
+            label = "skillProgress_$label"
+        )
         LinearProgressIndicator(
-            progress = value / 5f,
+            progress = { animated },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp)
-                .clip(RoundedCornerShape(4.dp)),
+                .height(10.dp)
+                .clip(RoundedCornerShape(6.dp)),
             color = color,
             trackColor = Color(0xFFE0E0E0)
         )
@@ -590,9 +743,11 @@ fun RadarChart(
     values: List<Float>,
     labels: List<String>,
     modifier: Modifier = Modifier,
-    maxValue: Float = 5f
+    maxValue: Float = 5f,
+    fillColor: Color = GreenPrimary.copy(alpha = 0.3f),
+    strokeColor: Color = GreenPrimary
 ) {
-    Canvas(modifier = modifier.padding(16.dp)) {
+    Canvas(modifier = modifier.padding(12.dp)) {
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = size.minDimension / 2f * 0.7f
         val angleStep = 360f / values.size
@@ -610,7 +765,7 @@ fun RadarChart(
             path.close()
             drawPath(
                 path = path,
-                color = Color(0xFFE0E0E0),
+                color = Color(0xFFECEFF1),
                 style = Stroke(width = 1.dp.toPx())
             )
         }
@@ -641,11 +796,12 @@ fun RadarChart(
 
         drawPath(
             path = dataPath,
-            color = GreenPrimary.copy(alpha = 0.3f)
+            color = fillColor,
+            style = androidx.compose.ui.graphics.drawscope.Fill
         )
         drawPath(
             path = dataPath,
-            color = GreenPrimary,
+            color = strokeColor,
             style = Stroke(width = 2.dp.toPx())
         )
     }

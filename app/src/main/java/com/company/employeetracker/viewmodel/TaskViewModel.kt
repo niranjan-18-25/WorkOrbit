@@ -65,6 +65,15 @@ class TaskViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateTaskStatus(taskId: Int, newStatus: String) {
+        viewModelScope.launch {
+            // Update task in database
+            taskRepository.updateTaskStatus(taskId, newStatus)
+            // Reload tasks
+            loadTasksForEmployee(currentEmployeeId)
+        }
+    }
+
     fun addTask(task: Task) {
         viewModelScope.launch {
             taskDao.insertTask(task)

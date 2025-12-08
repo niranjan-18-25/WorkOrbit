@@ -1,5 +1,6 @@
 package com.company.employeetracker.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -20,6 +22,35 @@ import com.company.employeetracker.ui.theme.GreenPrimary
 import com.company.employeetracker.viewmodel.EmployeeViewModel
 import com.company.employeetracker.viewmodel.ReviewViewModel
 import java.time.LocalDate
+import kotlin.math.*
+
+/**
+ * Smooth color interpolation + animation utilities
+ */
+
+// Base anchor colors
+private val ColorRed = Color(0xFFFF5252)
+private val ColorAmber = Color(0xFFFFC107)
+private val ColorGreen = Color(0xFF4CAF50)
+
+/**
+ * Returns a smoothly interpolated color along the range 0f..5f.
+ * 0 -> red, 2.5 -> amber, 5 -> green, with linear interpolation between those anchors.
+ */
+fun getRatingColorSmooth(rating: Float): Color {
+    // Clamp rating to 0..5
+    val safe = rating.coerceIn(0f, 5f)
+    val fraction = safe / 5f // 0..1
+
+    // We'll interpolate in two segments: 0..0.5 (red->amber), 0.5..1.0 (amber->green)
+    return if (fraction <= 0.5f) {
+        val t = (fraction / 0.5f).coerceIn(0f, 1f) // 0..1 between red and amber
+        lerp(ColorRed, ColorAmber, t)
+    } else {
+        val t = ((fraction - 0.5f) / 0.5f).coerceIn(0f, 1f) // 0..1 between amber and green
+        lerp(ColorAmber, ColorGreen, t)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +78,10 @@ fun AddReviewDialog(
 
     // Calculate overall rating
     val overallRating = (quality + communication + innovation + timeliness + attendance) / 5f
+
+    // animated overall color (smooth + crossfade)
+    val overallTargetColor = getRatingColorSmooth(overallRating)
+    val overallAnimatedColor by animateColorAsState(targetValue = overallTargetColor)
 
     // Validate fields
     fun validateFields(): Boolean {
@@ -190,7 +225,7 @@ fun AddReviewDialog(
                 RatingSlider(
                     label = "Quality of Work",
                     value = quality,
-                    onValueChange = { quality = it }
+                    onValueChange = { quality = it },
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -234,7 +269,7 @@ fun AddReviewDialog(
                 // Overall Rating Display
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = GreenPrimary.copy(alpha = 0.1f)
+                        containerColor = overallAnimatedColor.copy(alpha = 0.08f)
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -254,18 +289,18 @@ fun AddReviewDialog(
                             Icon(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = null,
-                                tint = Color(0xFFFFC107),
+                                tint = overallAnimatedColor,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = String.format("%.1f", overallRating),
-                                fontSize = 24.sp,
+                                fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = GreenPrimary
+                                color = overallAnimatedColor
                             )
                             Text(
-                                text = " / 5.0",
+                                text = "/5.0",
                                 fontSize = 14.sp,
                                 color = Color(0xFF757575)
                             )
@@ -296,11 +331,11 @@ fun AddReviewDialog(
                             )
                         }
                     },
-                    minLines = 4,
-                    maxLines = 6,
+                    maxLines = 6,   // grows naturally up to 6 lines
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -351,13 +386,8 @@ fun AddReviewDialog(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Submit Review")
+                        Text("Submit")
                     }
                 }
             }
@@ -371,6 +401,11 @@ fun RatingSlider(
     value: Float,
     onValueChange: (Float) -> Unit
 ) {
+    // Smooth target color for the metric value
+    val targetColor = getRatingColorSmooth(value)
+    // Animated color to smoothly crossfade between changes
+    val animatedColor by animateColorAsState(targetValue = targetColor)
+
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -384,12 +419,12 @@ fun RatingSlider(
             )
             Surface(
                 shape = RoundedCornerShape(8.dp),
-                color = GreenPrimary.copy(alpha = 0.1f)
+                color = animatedColor.copy(alpha = 0.10f)
             ) {
                 Text(
                     text = String.format("%.1f", value),
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                    color = GreenPrimary,
+                    color = animatedColor,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -401,8 +436,8 @@ fun RatingSlider(
             valueRange = 0f..5f,
             steps = 9,
             colors = SliderDefaults.colors(
-                thumbColor = GreenPrimary,
-                activeTrackColor = GreenPrimary,
+                thumbColor = animatedColor,
+                activeTrackColor = animatedColor,
                 inactiveTrackColor = Color(0xFFE0E0E0)
             )
         )
