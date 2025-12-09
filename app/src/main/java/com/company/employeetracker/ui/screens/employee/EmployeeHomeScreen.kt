@@ -26,6 +26,7 @@ import com.company.employeetracker.viewmodel.ReviewViewModel
 import com.company.employeetracker.viewmodel.TaskViewModel
 import com.company.employeetracker.ui.components.LoadingScreen
 import com.company.employeetracker.ui.components.ErrorStateScreen
+import com.company.employeetracker.viewmodel.MessageViewModel
 
 @Composable
 fun EmployeeHomeScreen(
@@ -61,6 +62,15 @@ fun EmployeeHomeScreen(
     val totalTasks = activeCount + pendingCount + completedCount
     val completionPercentage = if (totalTasks > 0) (completedCount * 100) / totalTasks else 0
     val latestReview = reviews.firstOrNull()
+
+    var showNotifications by remember { mutableStateOf(false) }
+    val messageViewModel: MessageViewModel = viewModel()
+
+    LaunchedEffect(currentUser.id) {
+        messageViewModel.loadUnreadCount(currentUser.id)
+    }
+
+    val unreadCount by messageViewModel.unreadCount.collectAsState()
 
     // Show Loading
     if (isLoading) {
@@ -148,11 +158,42 @@ fun EmployeeHomeScreen(
                         }
                     }
 
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications",
-                            tint = Color.White
+
+                    Box {
+                        IconButton(onClick = { showNotifications = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notifications",
+                                tint = Color.White
+                            )
+                        }
+
+                        // Red Badge
+                        if (unreadCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .offset(x = 24.dp, y = 8.dp)
+                                    .clip(CircleShape)
+                                    .background(AccentRed),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
+                    // Navigate to notifications
+                    if (showNotifications) {
+                        NotificationsScreen(
+                            currentUser = currentUser,
+                            onBackClick = { showNotifications = false },
+                            onMessageClick = { /* Navigate to chat */ }
                         )
                     }
                 }

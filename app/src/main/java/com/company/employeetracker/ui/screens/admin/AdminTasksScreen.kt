@@ -23,7 +23,10 @@ import com.company.employeetracker.ui.components.AddTaskDialog
 import com.company.employeetracker.ui.components.EmptyStateScreen
 import kotlinx.coroutines.delay
 import com.company.employeetracker.ui.components.LoadingScreen
-
+ import androidx.compose.foundation.lazy.LazyRow
+ import androidx.compose.foundation.rememberScrollState
+ import androidx.compose.foundation.horizontalScroll
+ import androidx.compose.ui.text.style.TextOverflow
 
 
 @Composable
@@ -292,21 +295,34 @@ fun AdminTasksScreen(
                 }
             }
 
-            // Filter Chips
+            // Filter Chips (horizontal scroll)
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
+
+                val filters = listOf("All", "High Priority", "Due Today", "My Tasks")
+
+                LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    listOf("All", "High Priority", "Due Today", "My Tasks").forEach { filter ->
+                    items(filters) { filter ->
                         FilterChip(
                             selected = selectedFilter == filter,
                             onClick = { selectedFilter = filter },
-                            label = { Text(filter) },
-                            colors = FilterChipDefaults.filterChipColors(
+                            label = {
+                                Text(
+                                    text = filter,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = 40.dp) // keeps chip height consistent
+                            , colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = PurplePrimary,
                                 selectedLabelColor = Color.White
                             )
@@ -314,7 +330,6 @@ fun AdminTasksScreen(
                     }
                 }
             }
-
             // Empty State for filters
             if (filteredTasks.isEmpty()) {
                 item {

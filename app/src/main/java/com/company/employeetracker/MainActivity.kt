@@ -18,7 +18,14 @@ import com.company.employeetracker.ui.components.EmployeeBottomNavBar
 import com.company.employeetracker.ui.screens.admin.*
 import com.company.employeetracker.ui.screens.auth.LoginScreen
 import com.company.employeetracker.ui.screens.auth.ForgotPasswordScreen
-import com.company.employeetracker.ui.screens.employee.*
+import com.company.employeetracker.ui.screens.admin.AdminProfileScreen
+import com.company.employeetracker.ui.screens.employee.EmployeeHomeScreen
+import com.company.employeetracker.ui.screens.employee.EmployeeProfileScreen
+import com.company.employeetracker.ui.screens.employee.EmployeeReviewsScreen
+import com.company.employeetracker.ui.screens.employee.EmployeeTasksScreen
+import com.company.employeetracker.ui.screens.employee.NotificationsScreen
+import com.company.employeetracker.ui.screens.employee.ChatScreen
+import com.company.employeetracker.ui.screens.employee.SelectEmployeeScreen
 import com.company.employeetracker.ui.theme.EmployeeTrackerTheme
 import com.company.employeetracker.viewmodel.AuthViewModel
 
@@ -152,7 +159,50 @@ fun EmployeeTrackerApp(authViewModel: AuthViewModel) {
                                 popUpTo(0) { inclusive = true }
                             }
                         },
+                        onNavigateToSelectEmployee = {
+                            navController.navigate("select_employee")
+                        },
                         authViewModel = authViewModel
+                    )
+                }
+            }
+
+            // Notifications Screen
+            composable("notifications") {
+                currentUser?.let { user ->
+                    NotificationsScreen(
+                        currentUser = user,
+                        onBackClick = { navController.popBackStack() },
+                        onMessageClick = { userId ->
+                            navController.navigate("chat/$userId")
+                        }
+                    )
+                }
+            }
+
+            // Chat Screen
+            composable("chat/{userId}") { backStackEntry ->
+                currentUser?.let { user ->
+                    val otherUserId = backStackEntry.arguments?.getString("userId")?.toInt() ?: 0
+                    ChatScreen(
+                        currentUser = user,
+                        otherUserId = otherUserId,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            // Select Employee Screen
+            composable("select_employee") {
+                currentUser?.let { user ->
+                    SelectEmployeeScreen(
+                        currentUser = user,
+                        onBackClick = { navController.popBackStack() },
+                        onEmployeeSelected = { userId ->
+                            navController.navigate("chat/$userId") {
+                                popUpTo("select_employee") { inclusive = true }
+                            }
+                        }
                     )
                 }
             }
