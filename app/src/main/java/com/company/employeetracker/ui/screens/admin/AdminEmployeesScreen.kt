@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.company.employeetracker.data.database.entities.User
 import com.company.employeetracker.ui.components.EmployeeCard
 import com.company.employeetracker.ui.components.AddEmployeeDialog
 import com.company.employeetracker.ui.theme.*
@@ -23,6 +24,7 @@ import com.company.employeetracker.viewmodel.EmployeeViewModel
 import com.company.employeetracker.viewmodel.ReviewViewModel
 import com.company.employeetracker.viewmodel.TaskViewModel
 import com.company.employeetracker.ui.components.EmptyStateScreen
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminEmployeesScreen(
@@ -34,7 +36,8 @@ fun AdminEmployeesScreen(
     val allTasks by taskViewModel.allTasks.collectAsState()
     val allReviews by reviewViewModel.allReviews.collectAsState()
 
-    // Moved to top-level so both the Add button and EmptyState CTA can toggle it
+    // State for showing employee detail
+    var selectedEmployee by remember { mutableStateOf<User?>(null) }
     var showAddEmployeeDialog by remember { mutableStateOf(false) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -58,6 +61,15 @@ fun AdminEmployeesScreen(
     val avgRating = if (allReviews.isNotEmpty()) {
         allReviews.map { it.overallRating }.average().toFloat()
     } else 0f
+
+    // Show Employee Detail Screen if an employee is selected
+    if (selectedEmployee != null) {
+        EmployeeDetailScreen(
+            employee = selectedEmployee!!,
+            onBackClick = { selectedEmployee = null }
+        )
+        return
+    }
 
     Column(
         modifier = Modifier
@@ -338,7 +350,7 @@ fun AdminEmployeesScreen(
                     )
                 }
             } else {
-                // Employee Cards (use stable keys)
+                // Employee Cards with click navigation
                 items(items = filteredEmployees, key = { it.id }) { employee ->
                     Spacer(modifier = Modifier.height(12.dp))
                     val employeeTasks = allTasks.filter { it.employeeId == employee.id }
@@ -351,6 +363,7 @@ fun AdminEmployeesScreen(
                         employee = employee,
                         taskCount = employeeTasks.size,
                         rating = employeeRating,
+                        onClick = { selectedEmployee = employee }, // Navigate to detail
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                 }
@@ -389,12 +402,11 @@ fun AdminEmployeesScreen(
         }
     }
 
-    // Add Employee Dialog (outside LazyColumn so it can overlay)
+    // Add Employee Dialog
     if (showAddEmployeeDialog) {
         AddEmployeeDialog(
             onDismiss = { showAddEmployeeDialog = false },
             onEmployeeAdded = {
-                // Employee added successfully - close dialog and optionally refresh data
                 showAddEmployeeDialog = false
             }
         )

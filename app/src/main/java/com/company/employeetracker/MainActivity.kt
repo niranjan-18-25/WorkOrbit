@@ -128,7 +128,12 @@ fun EmployeeTrackerApp(authViewModel: AuthViewModel) {
             // Employee Screens
             composable("home") {
                 currentUser?.let { user ->
-                    EmployeeHomeScreen(currentUser = user)
+                    EmployeeHomeScreen(
+                        currentUser = user,
+                        onNavigateToSelectEmployee = {
+                            navController.navigate("select_employee")
+                        }
+                    )
                 }
             }
 
@@ -158,9 +163,6 @@ fun EmployeeTrackerApp(authViewModel: AuthViewModel) {
                             navController.navigate("login") {
                                 popUpTo(0) { inclusive = true }
                             }
-                        },
-                        onNavigateToSelectEmployee = {
-                            navController.navigate("select_employee")
                         },
                         authViewModel = authViewModel
                     )

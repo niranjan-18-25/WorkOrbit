@@ -4,10 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.company.employeetracker.data.database.dao.AttendanceDao
 import com.company.employeetracker.data.database.dao.MessageDao
 import com.company.employeetracker.data.database.dao.ReviewDao
 import com.company.employeetracker.data.database.dao.TaskDao
 import com.company.employeetracker.data.database.dao.UserDao
+import com.company.employeetracker.data.database.entities.Attendance
 import com.company.employeetracker.data.database.entities.Message
 import com.company.employeetracker.data.database.entities.Review
 import com.company.employeetracker.data.database.entities.Task
@@ -17,8 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [User::class, Task::class, Review::class, Message::class],
-    version = 3,
+    entities = [User::class, Task::class, Review::class, Message::class, Attendance::class],
+    version = 4, // Increment version for new table
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -26,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun reviewDao(): ReviewDao
     abstract fun messageDao(): MessageDao
+    abstract fun attendanceDao(): AttendanceDao // New DAO
 
     companion object {
         @Volatile
@@ -51,11 +54,11 @@ abstract class AppDatabase : RoomDatabase() {
                                 instance.userDao(),
                                 instance.taskDao(),
                                 instance.reviewDao(),
-                                instance.messageDao()
+                                instance.messageDao(),
+                                instance.attendanceDao()
                             )
                         }
                     } catch (e: Exception) {
-                        // Log or handle as needed; avoid crashing on DB checks
                         android.util.Log.e("AppDatabase", "Error populating DB: ${e.message}")
                     }
                 }
@@ -68,7 +71,8 @@ abstract class AppDatabase : RoomDatabase() {
             userDao: UserDao,
             taskDao: TaskDao,
             reviewDao: ReviewDao,
-            messageDao: MessageDao
+            messageDao: MessageDao,
+            attendanceDao: AttendanceDao
         ) {
             // Insert only the admin user (authenticator)
             userDao.insertUser(
@@ -83,9 +87,8 @@ abstract class AppDatabase : RoomDatabase() {
                 )
             )
 
-            // Note: No sample employees, tasks, reviews, or messages are added anymore.
-            // If you need to add sample data later for testing, do so from a debug function
-            // or guarded code path so production devices don't get test data.
+            // Note: No sample data added here
+            // Production devices won't get test data
         }
     }
 }

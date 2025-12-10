@@ -24,6 +24,9 @@ import com.company.employeetracker.viewmodel.EmployeeViewModel
 import com.company.employeetracker.viewmodel.ReviewViewModel
 import com.company.employeetracker.viewmodel.TaskViewModel
 import com.company.employeetracker.ui.components.AddReviewDialog
+import java.text.SimpleDateFormat
+import java.util.*
+
 @Composable
 fun AdminDashboardScreen(
     employeeViewModel: EmployeeViewModel = viewModel(),
@@ -49,6 +52,53 @@ fun AdminDashboardScreen(
         .toList()
         .sortedByDescending { it.second }
         .take(3)
+
+    // Generate real-time activities from actual data
+    val recentActivities = remember(employees, allTasks, allReviews) {
+        mutableListOf<ActivityItem>().apply {
+            // Recent employee additions
+            employees.sortedByDescending { it.joiningDate }.take(2).forEach { employee ->
+                add(
+                    ActivityItem(
+                        icon = Icons.Default.PersonAdd,
+                        title = "New employee added",
+                        subtitle = "${employee.name} joined ${employee.department}",
+                        time = getRelativeTime(employee.joiningDate),
+                        iconColor = GreenPrimary
+                    )
+                )
+            }
+
+            // Recent task completions
+            allTasks.filter { it.status == "Done" }.sortedByDescending { it.deadline }
+                .take(2).forEach { task ->
+                    val employee = employees.find { it.id == task.employeeId }
+                    add(
+                        ActivityItem(
+                            icon = Icons.Default.CheckCircle,
+                            title = "Task completed",
+                            subtitle = "${task.title} by ${employee?.name ?: "Unknown"}",
+                            time = getRelativeTime(task.deadline),
+                            iconColor = AccentBlue
+                        )
+                    )
+                }
+
+            // Recent reviews
+            allReviews.sortedByDescending { it.date }.take(2).forEach { review ->
+                val employee = employees.find { it.id == review.employeeId }
+                add(
+                    ActivityItem(
+                        icon = Icons.Default.Star,
+                        title = "Performance review",
+                        subtitle = "${employee?.name ?: "Unknown"} rated ${String.format("%.1f", review.overallRating)}/5.0",
+                        time = getRelativeTime(review.date),
+                        iconColor = AccentYellow
+                    )
+                )
+            }
+        }.sortedByDescending { it.time }.take(5)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -213,7 +263,7 @@ fun AdminDashboardScreen(
             }
         }
 
-        // Recent Activities
+        // Recent Activities - REAL-TIME DATA
         item {
             Spacer(modifier = Modifier.height(24.dp))
             Row(
@@ -237,39 +287,54 @@ fun AdminDashboardScreen(
             }
         }
 
-        item {
-            Spacer(modifier = Modifier.height(12.dp))
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column {
-                    ActivityItem(
-                        icon = Icons.Default.PersonAdd,
-                        title = "New employee added",
-                        subtitle = "Sarah Johnson joined Engineering",
-                        time = "2h ago",
-                        iconColor = GreenPrimary
-                    )
-                    Divider()
-                    ActivityItem(
-                        icon = Icons.Default.CheckCircle,
-                        title = "Task completed",
-                        subtitle = "Code review finished by Sarah",
-                        time = "4h ago",
-                        iconColor = AccentBlue
-                    )
-                    Divider()
-                    ActivityItem(
-                        icon = Icons.Default.Star,
-                        title = "Performance review",
-                        subtitle = "Emily Davis rated 4.9/5.0",
-                        time = "1d ago",
-                        iconColor = AccentYellow
-                    )
+        if (recentActivities.isEmpty()) {
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(32.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No recent activities",
+                            fontSize = 14.sp,
+                            color = Color(0xFF757575)
+                        )
+                    }
+                }
+            }
+        } else {
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column {
+                        recentActivities.forEachIndexed { index, activity ->
+                            ActivityItemView(
+                                icon = activity.icon,
+                                title = activity.title,
+                                subtitle = activity.subtitle,
+                                time = activity.time,
+                                iconColor = activity.iconColor
+                            )
+                            if (index < recentActivities.size - 1) {
+                                Divider()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -318,6 +383,14 @@ fun AdminDashboardScreen(
         }
     }
 }
+
+data class ActivityItem(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val title: String,
+    val subtitle: String,
+    val time: String,
+    val iconColor: Color
+)
 
 @Composable
 fun AdminStatCard(
@@ -370,7 +443,7 @@ fun AdminStatCard(
 }
 
 @Composable
-fun ActivityItem(
+fun ActivityItemView(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
@@ -410,5 +483,25 @@ fun ActivityItem(
             fontSize = 11.sp,
             color = Color(0xFF9E9E9E)
         )
+    }
+}
+
+private fun getRelativeTime(dateString: String): String {
+    return try {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val date = dateFormat.parse(dateString) ?: return "Unknown"
+        val now = Date()
+        val diff = now.time - date.time
+        val days = diff / (1000 * 60 * 60 * 24)
+
+        when {
+            days < 1 -> "Today"
+            days < 2 -> "Yesterday"
+            days < 7 -> "${days}d ago"
+            days < 30 -> "${days / 7}w ago"
+            else -> "${days / 30}mo ago"
+        }
+    } catch (e: Exception) {
+        "Unknown"
     }
 }
