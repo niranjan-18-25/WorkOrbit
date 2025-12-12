@@ -1,9 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services") // keep explicit plugin (remove alias if not using version catalog)
+    id("com.google.gms.google-services")
     id("com.google.devtools.ksp") version "1.9.22-1.0.17"
-    // If you use a version catalog (libs.versions.toml) and want aliases, add them there and remove the explicit id(...)
 }
 
 android {
@@ -53,15 +52,15 @@ android {
 }
 
 dependencies {
-    // Firebase BoM (manage firebase versions)
-    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
+    // Firebase BoM (Bill of Materials)
+    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
 
-    // Firebase artifacts (no versions when using BoM)
-    implementation("com.google.firebase:firebase-analytics")
+    // Firebase dependencies (versions managed by BoM)
+    implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-database-ktx")
 
-    // Kotlin Coroutines for Firebase (keep a single entry)
+    // Kotlin Coroutines for Firebase
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 
     // Core Android
@@ -69,14 +68,14 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // Compose (using Compose BOM)
+    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended") // BOM handles version
-    implementation("androidx.compose.material:material:1.5.0") // optional if you rely on material (ok to keep)
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material:material:1.5.0")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
@@ -85,18 +84,18 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
 
-    // Room (runtime + ktx) and KSP compiler
+    // Room Database
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
 
-    // Coroutines (Android)
+    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Charts
     implementation("com.github.PhilJay:MPAndroidChart:3.1.0")
 
-    // Coil
+    // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // Testing

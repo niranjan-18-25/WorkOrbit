@@ -33,9 +33,9 @@ fun EmployeeHomeScreen(
     currentUser: User,
     onTaskClick: (Int) -> Unit = {},
     onNavigateToSelectEmployee: () -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {}, // Added this parameter
     taskViewModel: TaskViewModel = viewModel(),
-    reviewViewModel: ReviewViewModel = viewModel()
+    reviewViewModel: ReviewViewModel = viewModel(),
+    messageViewModel: MessageViewModel = viewModel()
 ) {
     var isLoading by remember { mutableStateOf(true) }
     var hasError by remember { mutableStateOf(false) }
@@ -46,6 +46,7 @@ fun EmployeeHomeScreen(
             hasError = false
             taskViewModel.loadTasksForEmployee(currentUser.id)
             reviewViewModel.loadReviewsForEmployee(currentUser.id)
+            messageViewModel.loadUnreadCount(currentUser.id)
             kotlinx.coroutines.delay(1000)
             isLoading = false
         } catch (e: Exception) {
@@ -58,19 +59,12 @@ fun EmployeeHomeScreen(
     val reviews by reviewViewModel.employeeReviews.collectAsState()
     val activeCount by taskViewModel.activeCount.collectAsState()
     val pendingCount by taskViewModel.pendingCount.collectAsState()
-    val completedCount by taskViewModel.completedCount.collectAsState() // Corrected this line
+    val completedCount by taskViewModel.completedCount.collectAsState()
+    val unreadCount by messageViewModel.unreadCount.collectAsState()
 
     val totalTasks = activeCount + pendingCount + completedCount
     val completionPercentage = if (totalTasks > 0) (completedCount * 100) / totalTasks else 0
     val latestReview = reviews.firstOrNull()
-
-    val messageViewModel: MessageViewModel = viewModel()
-
-    LaunchedEffect(currentUser.id) {
-        messageViewModel.loadUnreadCount(currentUser.id)
-    }
-
-    val unreadCount by messageViewModel.unreadCount.collectAsState()
 
     if (isLoading) {
         LoadingScreen(message = "Loading your dashboard...")
@@ -172,7 +166,7 @@ fun EmployeeHomeScreen(
                             }
 
                             Box {
-                                IconButton(onClick = onNavigateToNotifications) { // Changed onClick to use the new parameter
+                                IconButton(onClick = { /* Navigate to notifications */ }) {
                                     Icon(
                                         imageVector = Icons.Default.Notifications,
                                         contentDescription = "Notifications",
@@ -198,7 +192,6 @@ fun EmployeeHomeScreen(
                                     }
                                 }
                             }
-                            // Removed the NotificationsScreen composable call here
                         }
                     }
                 }
@@ -351,7 +344,7 @@ fun EmployeeHomeScreen(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             LinearProgressIndicator(
-                                progress = if (totalTasks > 0) completedCount.toFloat() / totalTasks else 0f,
+                                progress = { if (totalTasks > 0) completedCount.toFloat() / totalTasks else 0f },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(8.dp)
@@ -454,7 +447,7 @@ fun EmployeeHomeScreen(
                     }
                 }
 
-                // Upcoming Tasks with Empty State
+                // Upcoming Tasks
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Row(
@@ -491,7 +484,6 @@ fun EmployeeHomeScreen(
                     }
                 }
 
-                // Show Empty State if No Tasks
                 if (tasks.isEmpty()) {
                     item {
                         Box(
@@ -535,7 +527,6 @@ fun EmployeeHomeScreen(
                         }
                     }
                 } else {
-                    // Task List with Animation
                     items(tasks.take(3)) { task ->
                         Spacer(modifier = Modifier.height(12.dp))
                         AnimatedVisibility(
