@@ -11,13 +11,11 @@ import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-
+//import com.google.firebase.ktx.Firebase
 @Composable
 fun ForgotPasswordScreen(
     onBack: () -> Unit,
-    auth: FirebaseAuth = Firebase.auth
+    auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     var email by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
