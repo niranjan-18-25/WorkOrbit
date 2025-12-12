@@ -8,10 +8,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-/**
- * Firebase Repository for Real-time Data Synchronization
- * Handles CRUD operations with Firebase Realtime Database
- */
 class FirebaseRepository {
     private val database: DatabaseReference = FirebaseDatabase.getInstance().reference
     private val TAG = "FirebaseRepository"
@@ -27,9 +23,15 @@ class FirebaseRepository {
 
     suspend fun addUser(user: User): Result<String> {
         return try {
-            val userId = if (user.id == 0) usersRef.push().key!! else user.id.toString()
-            val userMap = mapOf(
-                "id" to userId,
+            // Generate a unique key for new users
+            val userId = if (user.id == 0) {
+                usersRef.push().key ?: System.currentTimeMillis().toString()
+            } else {
+                user.id.toString()
+            }
+
+            val userMap = hashMapOf(
+                "id" to userId.toIntOrNull() ?: System.currentTimeMillis().toInt(),
                 "email" to user.email,
                 "password" to user.password,
                 "name" to user.name,
@@ -40,17 +42,20 @@ class FirebaseRepository {
                 "contact" to user.contact,
                 "profileImage" to user.profileImage
             )
+
             usersRef.child(userId).setValue(userMap).await()
+            Log.d(TAG, "User added successfully: ${user.name}")
             Result.success(userId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding user", e)
+            Log.e(TAG, "Error adding user: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateUser(user: User): Result<Unit> {
         return try {
-            val userMap = mapOf(
+            val userMap = hashMapOf(
+                "id" to user.id,
                 "email" to user.email,
                 "password" to user.password,
                 "name" to user.name,
@@ -61,10 +66,11 @@ class FirebaseRepository {
                 "contact" to user.contact,
                 "profileImage" to user.profileImage
             )
-            usersRef.child(user.id.toString()).updateChildren(userMap).await()
+            usersRef.child(user.id.toString()).setValue(userMap).await()
+            Log.d(TAG, "User updated successfully: ${user.name}")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating user", e)
+            Log.e(TAG, "Error updating user: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -72,9 +78,10 @@ class FirebaseRepository {
     suspend fun deleteUser(userId: Int): Result<Unit> {
         return try {
             usersRef.child(userId.toString()).removeValue().await()
+            Log.d(TAG, "User deleted successfully: $userId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error deleting user", e)
+            Log.e(TAG, "Error deleting user: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -87,26 +94,26 @@ class FirebaseRepository {
                     try {
                         val user = User(
                             id = child.child("id").value.toString().toIntOrNull() ?: 0,
-                            email = child.child("email").value.toString(),
-                            password = child.child("password").value.toString(),
-                            name = child.child("name").value.toString(),
-                            role = child.child("role").value.toString(),
-                            designation = child.child("designation").value.toString(),
-                            department = child.child("department").value.toString(),
-                            joiningDate = child.child("joiningDate").value.toString(),
-                            contact = child.child("contact").value.toString(),
-                            profileImage = child.child("profileImage").value.toString()
+                            email = child.child("email").value?.toString() ?: "",
+                            password = child.child("password").value?.toString() ?: "",
+                            name = child.child("name").value?.toString() ?: "",
+                            role = child.child("role").value?.toString() ?: "",
+                            designation = child.child("designation").value?.toString() ?: "",
+                            department = child.child("department").value?.toString() ?: "",
+                            joiningDate = child.child("joiningDate").value?.toString() ?: "",
+                            contact = child.child("contact").value?.toString() ?: "",
+                            profileImage = child.child("profileImage").value?.toString() ?: ""
                         )
                         users.add(user)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing user", e)
+                        Log.e(TAG, "Error parsing user: ${e.message}", e)
                     }
                 }
                 trySend(users)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Users listener cancelled", error.toException())
+                Log.e(TAG, "Users listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -120,31 +127,31 @@ class FirebaseRepository {
                 val employees = mutableListOf<User>()
                 snapshot.children.forEach { child ->
                     try {
-                        val role = child.child("role").value.toString()
+                        val role = child.child("role").value?.toString()
                         if (role == "employee") {
                             val user = User(
                                 id = child.child("id").value.toString().toIntOrNull() ?: 0,
-                                email = child.child("email").value.toString(),
-                                password = child.child("password").value.toString(),
-                                name = child.child("name").value.toString(),
+                                email = child.child("email").value?.toString() ?: "",
+                                password = child.child("password").value?.toString() ?: "",
+                                name = child.child("name").value?.toString() ?: "",
                                 role = role,
-                                designation = child.child("designation").value.toString(),
-                                department = child.child("department").value.toString(),
-                                joiningDate = child.child("joiningDate").value.toString(),
-                                contact = child.child("contact").value.toString(),
-                                profileImage = child.child("profileImage").value.toString()
+                                designation = child.child("designation").value?.toString() ?: "",
+                                department = child.child("department").value?.toString() ?: "",
+                                joiningDate = child.child("joiningDate").value?.toString() ?: "",
+                                contact = child.child("contact").value?.toString() ?: "",
+                                profileImage = child.child("profileImage").value?.toString() ?: ""
                             )
                             employees.add(user)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing employee", e)
+                        Log.e(TAG, "Error parsing employee: ${e.message}", e)
                     }
                 }
                 trySend(employees)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Employees listener cancelled", error.toException())
+                Log.e(TAG, "Employees listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -157,25 +164,25 @@ class FirebaseRepository {
             val snapshot = usersRef.orderByChild("email").equalTo(email).get().await()
             var user: User? = null
             snapshot.children.forEach { child ->
-                val storedPassword = child.child("password").value.toString()
+                val storedPassword = child.child("password").value?.toString()
                 if (storedPassword == password) {
                     user = User(
                         id = child.child("id").value.toString().toIntOrNull() ?: 0,
-                        email = child.child("email").value.toString(),
+                        email = child.child("email").value?.toString() ?: "",
                         password = storedPassword,
-                        name = child.child("name").value.toString(),
-                        role = child.child("role").value.toString(),
-                        designation = child.child("designation").value.toString(),
-                        department = child.child("department").value.toString(),
-                        joiningDate = child.child("joiningDate").value.toString(),
-                        contact = child.child("contact").value.toString(),
-                        profileImage = child.child("profileImage").value.toString()
+                        name = child.child("name").value?.toString() ?: "",
+                        role = child.child("role").value?.toString() ?: "",
+                        designation = child.child("designation").value?.toString() ?: "",
+                        department = child.child("department").value?.toString() ?: "",
+                        joiningDate = child.child("joiningDate").value?.toString() ?: "",
+                        contact = child.child("contact").value?.toString() ?: "",
+                        profileImage = child.child("profileImage").value?.toString() ?: ""
                     )
                 }
             }
             Result.success(user)
         } catch (e: Exception) {
-            Log.e(TAG, "Error logging in", e)
+            Log.e(TAG, "Error logging in: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -184,9 +191,14 @@ class FirebaseRepository {
 
     suspend fun addTask(task: Task): Result<String> {
         return try {
-            val taskId = if (task.id == 0) tasksRef.push().key!! else task.id.toString()
-            val taskMap = mapOf(
-                "id" to taskId,
+            val taskId = if (task.id == 0) {
+                tasksRef.push().key ?: System.currentTimeMillis().toString()
+            } else {
+                task.id.toString()
+            }
+
+            val taskMap = hashMapOf(
+                "id" to taskId.toIntOrNull() ?: System.currentTimeMillis().toInt(),
                 "employeeId" to task.employeeId,
                 "title" to task.title,
                 "description" to task.description,
@@ -196,17 +208,20 @@ class FirebaseRepository {
                 "assignedDate" to task.assignedDate,
                 "assignedBy" to task.assignedBy
             )
+
             tasksRef.child(taskId).setValue(taskMap).await()
+            Log.d(TAG, "Task added successfully: ${task.title}")
             Result.success(taskId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding task", e)
+            Log.e(TAG, "Error adding task: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     suspend fun updateTask(task: Task): Result<Unit> {
         return try {
-            val taskMap = mapOf(
+            val taskMap = hashMapOf(
+                "id" to task.id,
                 "employeeId" to task.employeeId,
                 "title" to task.title,
                 "description" to task.description,
@@ -216,10 +231,11 @@ class FirebaseRepository {
                 "assignedDate" to task.assignedDate,
                 "assignedBy" to task.assignedBy
             )
-            tasksRef.child(task.id.toString()).updateChildren(taskMap).await()
+            tasksRef.child(task.id.toString()).setValue(taskMap).await()
+            Log.d(TAG, "Task updated successfully: ${task.title}")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating task", e)
+            Log.e(TAG, "Error updating task: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -227,9 +243,10 @@ class FirebaseRepository {
     suspend fun deleteTask(taskId: Int): Result<Unit> {
         return try {
             tasksRef.child(taskId.toString()).removeValue().await()
+            Log.d(TAG, "Task deleted successfully: $taskId")
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error deleting task", e)
+            Log.e(TAG, "Error deleting task: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -243,24 +260,24 @@ class FirebaseRepository {
                         val task = Task(
                             id = child.child("id").value.toString().toIntOrNull() ?: 0,
                             employeeId = child.child("employeeId").value.toString().toIntOrNull() ?: 0,
-                            title = child.child("title").value.toString(),
-                            description = child.child("description").value.toString(),
-                            priority = child.child("priority").value.toString(),
-                            status = child.child("status").value.toString(),
-                            deadline = child.child("deadline").value.toString(),
-                            assignedDate = child.child("assignedDate").value.toString(),
-                            assignedBy = child.child("assignedBy").value.toString()
+                            title = child.child("title").value?.toString() ?: "",
+                            description = child.child("description").value?.toString() ?: "",
+                            priority = child.child("priority").value?.toString() ?: "",
+                            status = child.child("status").value?.toString() ?: "",
+                            deadline = child.child("deadline").value?.toString() ?: "",
+                            assignedDate = child.child("assignedDate").value?.toString() ?: "",
+                            assignedBy = child.child("assignedBy").value?.toString() ?: ""
                         )
                         tasks.add(task)
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing task", e)
+                        Log.e(TAG, "Error parsing task: ${e.message}", e)
                     }
                 }
                 trySend(tasks)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Tasks listener cancelled", error.toException())
+                Log.e(TAG, "Tasks listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -279,25 +296,25 @@ class FirebaseRepository {
                             val task = Task(
                                 id = child.child("id").value.toString().toIntOrNull() ?: 0,
                                 employeeId = empId,
-                                title = child.child("title").value.toString(),
-                                description = child.child("description").value.toString(),
-                                priority = child.child("priority").value.toString(),
-                                status = child.child("status").value.toString(),
-                                deadline = child.child("deadline").value.toString(),
-                                assignedDate = child.child("assignedDate").value.toString(),
-                                assignedBy = child.child("assignedBy").value.toString()
+                                title = child.child("title").value?.toString() ?: "",
+                                description = child.child("description").value?.toString() ?: "",
+                                priority = child.child("priority").value?.toString() ?: "",
+                                status = child.child("status").value?.toString() ?: "",
+                                deadline = child.child("deadline").value?.toString() ?: "",
+                                assignedDate = child.child("assignedDate").value?.toString() ?: "",
+                                assignedBy = child.child("assignedBy").value?.toString() ?: ""
                             )
                             tasks.add(task)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing employee task", e)
+                        Log.e(TAG, "Error parsing employee task: ${e.message}", e)
                     }
                 }
                 trySend(tasks)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Employee tasks listener cancelled", error.toException())
+                Log.e(TAG, "Employee tasks listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -309,9 +326,14 @@ class FirebaseRepository {
 
     suspend fun addReview(review: Review): Result<String> {
         return try {
-            val reviewId = if (review.id == 0) reviewsRef.push().key!! else review.id.toString()
-            val reviewMap = mapOf(
-                "id" to reviewId,
+            val reviewId = if (review.id == 0) {
+                reviewsRef.push().key ?: System.currentTimeMillis().toString()
+            } else {
+                review.id.toString()
+            }
+
+            val reviewMap = hashMapOf(
+                "id" to reviewId.toIntOrNull() ?: System.currentTimeMillis().toInt(),
                 "employeeId" to review.employeeId,
                 "date" to review.date,
                 "quality" to review.quality,
@@ -323,10 +345,12 @@ class FirebaseRepository {
                 "remarks" to review.remarks,
                 "reviewedBy" to review.reviewedBy
             )
+
             reviewsRef.child(reviewId).setValue(reviewMap).await()
+            Log.d(TAG, "Review added successfully for employee: ${review.employeeId}")
             Result.success(reviewId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error adding review", e)
+            Log.e(TAG, "Error adding review: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -342,27 +366,27 @@ class FirebaseRepository {
                             val review = Review(
                                 id = child.child("id").value.toString().toIntOrNull() ?: 0,
                                 employeeId = empId,
-                                date = child.child("date").value.toString(),
+                                date = child.child("date").value?.toString() ?: "",
                                 quality = child.child("quality").value.toString().toFloatOrNull() ?: 0f,
                                 communication = child.child("communication").value.toString().toFloatOrNull() ?: 0f,
                                 innovation = child.child("innovation").value.toString().toFloatOrNull() ?: 0f,
                                 timeliness = child.child("timeliness").value.toString().toFloatOrNull() ?: 0f,
                                 attendance = child.child("attendance").value.toString().toFloatOrNull() ?: 0f,
                                 overallRating = child.child("overallRating").value.toString().toFloatOrNull() ?: 0f,
-                                remarks = child.child("remarks").value.toString(),
-                                reviewedBy = child.child("reviewedBy").value.toString()
+                                remarks = child.child("remarks").value?.toString() ?: "",
+                                reviewedBy = child.child("reviewedBy").value?.toString() ?: ""
                             )
                             reviews.add(review)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing review", e)
+                        Log.e(TAG, "Error parsing review: ${e.message}", e)
                     }
                 }
                 trySend(reviews)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Reviews listener cancelled", error.toException())
+                Log.e(TAG, "Reviews listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -374,9 +398,14 @@ class FirebaseRepository {
 
     suspend fun sendMessage(message: Message): Result<String> {
         return try {
-            val messageId = if (message.id == 0) messagesRef.push().key!! else message.id.toString()
-            val messageMap = mapOf(
-                "id" to messageId,
+            val messageId = if (message.id == 0) {
+                messagesRef.push().key ?: System.currentTimeMillis().toString()
+            } else {
+                message.id.toString()
+            }
+
+            val messageMap = hashMapOf(
+                "id" to messageId.toIntOrNull() ?: System.currentTimeMillis().toInt(),
                 "senderId" to message.senderId,
                 "receiverId" to message.receiverId,
                 "message" to message.message,
@@ -385,10 +414,12 @@ class FirebaseRepository {
                 "messageType" to message.messageType,
                 "relatedReviewId" to message.relatedReviewId
             )
+
             messagesRef.child(messageId).setValue(messageMap).await()
+            Log.d(TAG, "Message sent successfully")
             Result.success(messageId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending message", e)
+            Log.e(TAG, "Error sending message: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -398,7 +429,7 @@ class FirebaseRepository {
             messagesRef.child(messageId.toString()).child("isRead").setValue(true).await()
             Result.success(Unit)
         } catch (e: Exception) {
-            Log.e(TAG, "Error marking message as read", e)
+            Log.e(TAG, "Error marking message as read: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -418,23 +449,23 @@ class FirebaseRepository {
                                 id = child.child("id").value.toString().toIntOrNull() ?: 0,
                                 senderId = senderId,
                                 receiverId = receiverId,
-                                message = child.child("message").value.toString(),
+                                message = child.child("message").value?.toString() ?: "",
                                 timestamp = child.child("timestamp").value.toString().toLongOrNull() ?: 0L,
                                 isRead = child.child("isRead").value as? Boolean ?: false,
-                                messageType = child.child("messageType").value.toString(),
+                                messageType = child.child("messageType").value?.toString() ?: "DIRECT",
                                 relatedReviewId = child.child("relatedReviewId").value.toString().toIntOrNull()
                             )
                             messages.add(message)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing message", e)
+                        Log.e(TAG, "Error parsing message: ${e.message}", e)
                     }
                 }
                 trySend(messages.sortedBy { it.timestamp })
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Conversation listener cancelled", error.toException())
+                Log.e(TAG, "Conversation listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }
@@ -446,9 +477,14 @@ class FirebaseRepository {
 
     suspend fun markAttendance(attendance: Attendance): Result<String> {
         return try {
-            val attendanceId = if (attendance.id == 0) attendanceRef.push().key!! else attendance.id.toString()
-            val attendanceMap = mapOf(
-                "id" to attendanceId,
+            val attendanceId = if (attendance.id == 0) {
+                attendanceRef.push().key ?: System.currentTimeMillis().toString()
+            } else {
+                attendance.id.toString()
+            }
+
+            val attendanceMap = hashMapOf(
+                "id" to attendanceId.toIntOrNull() ?: System.currentTimeMillis().toInt(),
                 "employeeId" to attendance.employeeId,
                 "date" to attendance.date,
                 "checkInTime" to attendance.checkInTime,
@@ -457,10 +493,12 @@ class FirebaseRepository {
                 "remarks" to attendance.remarks,
                 "markedBy" to attendance.markedBy
             )
+
             attendanceRef.child(attendanceId).setValue(attendanceMap).await()
+            Log.d(TAG, "Attendance marked successfully")
             Result.success(attendanceId)
         } catch (e: Exception) {
-            Log.e(TAG, "Error marking attendance", e)
+            Log.e(TAG, "Error marking attendance: ${e.message}", e)
             Result.failure(e)
         }
     }
@@ -476,24 +514,24 @@ class FirebaseRepository {
                             val attendance = Attendance(
                                 id = child.child("id").value.toString().toIntOrNull() ?: 0,
                                 employeeId = empId,
-                                date = child.child("date").value.toString(),
-                                checkInTime = child.child("checkInTime").value.toString(),
-                                checkOutTime = child.child("checkOutTime").value.toString(),
-                                status = child.child("status").value.toString(),
-                                remarks = child.child("remarks").value.toString(),
-                                markedBy = child.child("markedBy").value.toString()
+                                date = child.child("date").value?.toString() ?: "",
+                                checkInTime = child.child("checkInTime").value?.toString() ?: "",
+                                checkOutTime = child.child("checkOutTime").value?.toString(),
+                                status = child.child("status").value?.toString() ?: "",
+                                remarks = child.child("remarks").value?.toString() ?: "",
+                                markedBy = child.child("markedBy").value?.toString() ?: ""
                             )
                             attendanceList.add(attendance)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing attendance", e)
+                        Log.e(TAG, "Error parsing attendance: ${e.message}", e)
                     }
                 }
                 trySend(attendanceList.sortedByDescending { it.date })
             }
 
             override fun onCancelled(error: DatabaseError) {
-                Log.e(TAG, "Attendance listener cancelled", error.toException())
+                Log.e(TAG, "Attendance listener cancelled: ${error.message}")
                 close(error.toException())
             }
         }

@@ -38,6 +38,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Test Firebase connection
+        val testRef = FirebaseDatabase.getInstance().reference.child("test")
+        testRef.setValue("Hello Firebase").addOnSuccessListener {
+            Log.d("Firebase", "✅ Connected successfully!")
+        }.addOnFailureListener {
+            Log.e("Firebase", "❌ Connection failed: ${it.message}")
+        }
+
         // Initialize Firebase (if not already initialized)
         try {
             FirebaseDatabase.getInstance().setPersistenceEnabled(true)
